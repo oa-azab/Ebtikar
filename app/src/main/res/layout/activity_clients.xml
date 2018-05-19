@@ -5,4 +5,4 @@
     android:id="@+id/rv_clients"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    tools:context="me.omarahmed.ebtikar.ui.ClientsActivity" />
+    tools:context="me.omarahmed.ebtikar.ui.clients.ClientsActivity" />

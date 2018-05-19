@@ -1,6 +1,7 @@
-package me.omarahmed.ebtikar.ui;
+package me.omarahmed.ebtikar.ui.clients;
 
 import android.content.Intent;
+import android.net.Uri;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.support.v7.widget.DividerItemDecoration;
@@ -12,7 +13,6 @@ import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
 import java.lang.reflect.Type;
-import java.util.ArrayList;
 import java.util.List;
 
 import me.omarahmed.ebtikar.R;
@@ -43,7 +43,6 @@ public class ClientsActivity extends AppCompatActivity {
         Type listType = new TypeToken<List<Client>>() {
         }.getType();
         clientsData = gson.fromJson(response, listType);
-        Toast.makeText(this, "clientsData size: " + clientsData.size(), Toast.LENGTH_SHORT).show();
 
         recyclerView = findViewById(R.id.rv_clients);
         recyclerView.setHasFixedSize(true);
@@ -60,7 +59,16 @@ public class ClientsActivity extends AppCompatActivity {
     private ClientsAdapter.ClientCallback clientCallback = new ClientsAdapter.ClientCallback() {
         @Override
         public void onClientClicked(String number) {
-            Toast.makeText(ClientsActivity.this, "number: " + number, Toast.LENGTH_SHORT).show();
+            Intent intent = new Intent(Intent.ACTION_DIAL);
+            intent.setData(Uri.parse("tel:" + number));
+            if (intent.resolveActivity(getPackageManager()) != null)
+                startActivity(intent);
+        }
+
+        @Override
+        public void onClientInfoClicked(Client client) {
+            ClientInfoSheet clientInfoSheet = ClientInfoSheet.newInstance(client);
+            clientInfoSheet.show(getSupportFragmentManager(), "ClientInfoSheet");
         }
     };
 }

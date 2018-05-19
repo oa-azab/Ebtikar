@@ -1,4 +1,4 @@
-package me.omarahmed.ebtikar;
+package me.omarahmed.ebtikar.util;
 
 import android.graphics.BitmapFactory;
 

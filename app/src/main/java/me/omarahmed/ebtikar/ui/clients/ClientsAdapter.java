@@ -1,10 +1,11 @@
-package me.omarahmed.ebtikar.ui;
+package me.omarahmed.ebtikar.ui.clients;
 
 import android.content.Context;
 import android.support.v7.widget.RecyclerView;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ImageButton;
 import android.widget.TextView;
 
 import java.util.List;
@@ -53,11 +54,21 @@ public class ClientsAdapter extends RecyclerView.Adapter<ClientsAdapter.ClientVi
 
         TextView name;
         TextView number;
+        ImageButton info;
 
         public ClientViewHolder(View itemView) {
             super(itemView);
             name = itemView.findViewById(R.id.tv_client_name);
             number = itemView.findViewById(R.id.tv_client_number);
+            info = itemView.findViewById(R.id.btn_info);
+            info.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View view) {
+                    if (callback != null) {
+                        callback.onClientInfoClicked(data.get(getAdapterPosition()));
+                    }
+                }
+            });
             itemView.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View view) {
@@ -66,6 +77,7 @@ public class ClientsAdapter extends RecyclerView.Adapter<ClientsAdapter.ClientVi
                     }
                 }
             });
+
         }
 
         public void bindData(Client client) {
@@ -76,5 +88,7 @@ public class ClientsAdapter extends RecyclerView.Adapter<ClientsAdapter.ClientVi
 
     interface ClientCallback {
         void onClientClicked(String number);
+
+        void onClientInfoClicked(Client client);
     }
 }

@@ -1,8 +1,9 @@
-package me.omarahmed.ebtikar;
+package me.omarahmed.ebtikar.ui.main;
 
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.support.design.widget.FloatingActionButton;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
@@ -27,9 +28,12 @@ import java.io.IOException;
 import java.lang.reflect.Type;
 import java.util.List;
 
+import me.omarahmed.ebtikar.ui.camera.CameraActivity;
+import me.omarahmed.ebtikar.util.BitmapUtil;
+import me.omarahmed.ebtikar.R;
 import me.omarahmed.ebtikar.data.Client;
 import me.omarahmed.ebtikar.remote.EbtikarService;
-import me.omarahmed.ebtikar.ui.ClientsActivity;
+import me.omarahmed.ebtikar.ui.clients.ClientsActivity;
 import retrofit2.Call;
 import retrofit2.Retrofit;
 import retrofit2.converter.scalars.ScalarsConverterFactory;
@@ -41,6 +45,8 @@ public class MainActivity extends AppCompatActivity {
     private Button button;
     private ImageView imageView;
     private TextView txtView;
+    private FloatingActionButton cameraFab;
+
     private Bitmap bitmap;
     private BarcodeDetector barcodeDetector;
 
@@ -58,9 +64,21 @@ public class MainActivity extends AppCompatActivity {
                 detectBarcode();
             }
         });
-
+        cameraFab = findViewById(R.id.fab_scan_code);
+        cameraFab.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                // TODO: 18/05/2018 Check runtime permissions
+                openCamera();
+            }
+        });
         loadImage();
         setupBarcodeDetector();
+    }
+
+    private void openCamera() {
+        Intent intent = new Intent(this, CameraActivity.class);
+        startActivity(intent);
     }
 
     private void detectBarcode() {
