@@ -17,6 +17,7 @@ import me.omarahmed.ebtikar.R;
 import me.omarahmed.ebtikar.data.Client;
 import me.omarahmed.ebtikar.data.Interest;
 import me.omarahmed.ebtikar.data.Language;
+import me.omarahmed.ebtikar.receivers.PhonecallReceiver;
 
 /**
  * Created by Dell on 18/05/2018.
@@ -89,5 +90,6 @@ public class ClientInfoSheet extends BottomSheetDialogFragment {
         intent.setData(Uri.parse("tel:" + client.getMobile()));
         if (intent.resolveActivity(getActivity().getPackageManager()) != null)
             startActivity(intent);
+        PhonecallReceiver.client = client;
     }
 }

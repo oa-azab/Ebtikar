@@ -9,22 +9,24 @@ import android.util.Log;
 import android.util.SparseArray;
 import android.view.View;
 import android.webkit.URLUtil;
+import android.widget.ImageView;
 import android.widget.Toast;
 
+import com.google.android.gms.vision.Frame;
 import com.google.android.gms.vision.barcode.Barcode;
 import com.google.android.gms.vision.barcode.BarcodeDetector;
 
+import java.io.File;
+
 import io.fotoapparat.Fotoapparat;
 import io.fotoapparat.parameter.ScaleType;
-import io.fotoapparat.preview.Frame;
-import io.fotoapparat.preview.FrameProcessor;
 import io.fotoapparat.result.BitmapPhoto;
 import io.fotoapparat.result.PhotoResult;
 import io.fotoapparat.result.WhenDoneListener;
 import io.fotoapparat.view.CameraView;
+import kotlin.Unit;
 import me.omarahmed.ebtikar.R;
 
-import static io.fotoapparat.result.transformer.ResolutionTransformersKt.scaled;
 import static io.fotoapparat.selector.FlashSelectorsKt.autoFlash;
 import static io.fotoapparat.selector.FlashSelectorsKt.autoRedEye;
 import static io.fotoapparat.selector.FlashSelectorsKt.torch;
@@ -32,13 +34,13 @@ import static io.fotoapparat.selector.FocusModeSelectorsKt.autoFocus;
 import static io.fotoapparat.selector.FocusModeSelectorsKt.fixed;
 import static io.fotoapparat.selector.LensPositionSelectorsKt.back;
 import static io.fotoapparat.selector.SelectorsKt.firstAvailable;
-import static me.omarahmed.ebtikar.util.BitmapUtil.calculateInSampleSize;
 
 public class CameraActivity extends AppCompatActivity {
 
     private static final String TAG = "CameraActivity";
 
     private CameraView cameraView;
+    private ImageView imagePreview;
     private FloatingActionButton fabCapture;
     private Fotoapparat fotoapparat;
     private BarcodeDetector barcodeDetector;
@@ -50,16 +52,21 @@ public class CameraActivity extends AppCompatActivity {
 
         // Find ui
         cameraView = findViewById(R.id.camera_view);
+        imagePreview = findViewById(R.id.img_preview);
         fabCapture = findViewById(R.id.fab_capture);
         fabCapture.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
                 PhotoResult photoResult = fotoapparat.takePicture();
-                photoResult.toBitmap()
-                        .whenDone(new WhenDoneListener<BitmapPhoto>() {
+                final File file = new File(getFilesDir(), "qrcodeimage.jpg");
+                photoResult.saveToFile(file)
+                        .whenDone(new WhenDoneListener<Unit>() {
                             @Override
-                            public void whenDone(BitmapPhoto bitmapPhoto) {
-                                detect(bitmapPhoto.bitmap);
+                            public void whenDone(Unit unit) {
+                                Bitmap bitmap = BitmapFactory.decodeFile(file.getAbsolutePath());
+                                imagePreview.setVisibility(View.VISIBLE);
+                                imagePreview.setImageBitmap(bitmap);
+                                detect(bitmap);
                             }
                         });
             }
@@ -105,33 +112,17 @@ public class CameraActivity extends AppCompatActivity {
                         autoFlash(),
                         torch()
                 ))
-                // .frameProcessor(frameProcessor)   // (optional) receives each frame from preview stream
                 .build();
     }
 
-    private FrameProcessor frameProcessor = new FrameProcessor() {
-        @Override
-        public void process(Frame frame) {
-            byte[] image = frame.getImage();
-
-            BitmapFactory.Options options = new BitmapFactory.Options();
-            options.inJustDecodeBounds = true;
-            BitmapFactory.decodeByteArray(image, 0, image.length, options);
-
-            // Calculate inSampleSize
-            options.inSampleSize = calculateInSampleSize(options, 500, 500);
-            // Decode bitmap with inSampleSize set
-            options.inJustDecodeBounds = false;
-            Bitmap bmp1 = BitmapFactory.decodeByteArray(image, 0, image.length, options);
-
-            detect(bmp1);
-
-        }
-    };
-
     private void detect(Bitmap bitmap) {
-        com.google.android.gms.vision.Frame frame = new com.google.android.gms.vision.Frame.Builder().setBitmap(bitmap).build();
+        Frame frame = new Frame.Builder().setBitmap(bitmap).build();
         SparseArray<Barcode> barcodes = barcodeDetector.detect(frame);
+        if (barcodes == null || barcodes.size() < 1) {
+            Toast.makeText(this, "Detecting qr code failed", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
         Barcode barcode = barcodes.valueAt(0);
         boolean isValid = URLUtil.isValidUrl(barcode.rawValue);
         Log.d(TAG, "Is url valid: " + isValid);
