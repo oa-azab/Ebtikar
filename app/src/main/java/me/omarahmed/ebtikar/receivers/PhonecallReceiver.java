@@ -11,7 +11,7 @@ import com.google.gson.Gson;
 import java.util.Date;
 
 import me.omarahmed.ebtikar.data.Client;
-import me.omarahmed.ebtikar.ui.CallEndedActivity;
+import me.omarahmed.ebtikar.ui.callended.CallEndedActivity;
 
 /**
  * Created by Dell on 19/05/2018.

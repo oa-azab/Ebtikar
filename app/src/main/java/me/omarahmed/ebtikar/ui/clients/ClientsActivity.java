@@ -17,6 +17,7 @@ import java.util.List;
 
 import me.omarahmed.ebtikar.R;
 import me.omarahmed.ebtikar.data.Client;
+import me.omarahmed.ebtikar.receivers.PhonecallReceiver;
 
 public class ClientsActivity extends AppCompatActivity {
 
@@ -58,11 +59,12 @@ public class ClientsActivity extends AppCompatActivity {
 
     private ClientsAdapter.ClientCallback clientCallback = new ClientsAdapter.ClientCallback() {
         @Override
-        public void onClientClicked(String number) {
+        public void onClientClicked(Client client) {
             Intent intent = new Intent(Intent.ACTION_DIAL);
-            intent.setData(Uri.parse("tel:" + number));
+            intent.setData(Uri.parse("tel:" + client.getMobile()));
             if (intent.resolveActivity(getPackageManager()) != null)
                 startActivity(intent);
+            PhonecallReceiver.client = client;
         }
 
         @Override

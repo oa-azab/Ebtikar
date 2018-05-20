@@ -37,7 +37,7 @@
         </receiver>
 
         <activity
-            android:name=".ui.CallEndedActivity"
+            android:name=".ui.callended.CallEndedActivity"
             android:excludeFromRecents="true"
             android:theme="@style/CallEndedDialog" />
     </application>

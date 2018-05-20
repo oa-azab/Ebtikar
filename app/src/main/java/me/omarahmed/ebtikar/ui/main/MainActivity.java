@@ -1,9 +1,13 @@
 package me.omarahmed.ebtikar.ui.main;
 
+import android.Manifest;
+import android.app.ProgressDialog;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.provider.MediaStore;
 import android.support.design.widget.FloatingActionButton;
+import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
@@ -13,12 +17,18 @@ import android.webkit.URLUtil;
 import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.google.android.gms.vision.Frame;
 import com.google.android.gms.vision.barcode.Barcode;
 import com.google.android.gms.vision.barcode.BarcodeDetector;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
+import com.karumi.dexter.Dexter;
+import com.karumi.dexter.MultiplePermissionsReport;
+import com.karumi.dexter.PermissionToken;
+import com.karumi.dexter.listener.PermissionRequest;
+import com.karumi.dexter.listener.multi.MultiplePermissionsListener;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -35,20 +45,22 @@ import me.omarahmed.ebtikar.data.Client;
 import me.omarahmed.ebtikar.remote.EbtikarService;
 import me.omarahmed.ebtikar.ui.clients.ClientsActivity;
 import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
 import retrofit2.Retrofit;
 import retrofit2.converter.scalars.ScalarsConverterFactory;
 
 public class MainActivity extends AppCompatActivity {
 
     private static final String TAG = "MainActivity";
+    private static final int REQUEST_IMAGE_CAPTURE = 1;
 
-    private Button button;
+    private Button btnTakePicture, btnScan;
     private ImageView imageView;
-    private TextView txtView;
-    private FloatingActionButton cameraFab;
 
     private Bitmap bitmap;
     private BarcodeDetector barcodeDetector;
+    private ProgressDialog progressDialog;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -56,24 +68,81 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
 
         imageView = findViewById(R.id.imgview);
-        txtView = findViewById(R.id.textView);
-        button = findViewById(R.id.button);
-        button.setOnClickListener(new View.OnClickListener() {
+        btnScan = findViewById(R.id.btn_scan);
+        btnScan.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                detectBarcode();
+                checkPermissions();
             }
         });
-        cameraFab = findViewById(R.id.fab_scan_code);
-        cameraFab.setOnClickListener(new View.OnClickListener() {
+        btnTakePicture = findViewById(R.id.btn_take_picture);
+        btnTakePicture.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                // TODO: 18/05/2018 Check runtime permissions
-                openCamera();
+                checkCameraPermissions();
             }
         });
         loadImage();
         setupBarcodeDetector();
+        setupProgressDialog();
+    }
+
+    private void captureImage() {
+        Intent takePictureIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+        if (takePictureIntent.resolveActivity(getPackageManager()) != null) {
+            startActivityForResult(takePictureIntent, REQUEST_IMAGE_CAPTURE);
+        }
+    }
+
+    private void checkPermissions() {
+        Dexter.withActivity(this)
+                .withPermissions(
+                        Manifest.permission.CAMERA,
+                        Manifest.permission.PROCESS_OUTGOING_CALLS,
+                        Manifest.permission.READ_PHONE_STATE,
+                        Manifest.permission.CALL_PHONE,
+                        Manifest.permission.ACCESS_FINE_LOCATION
+                ).withListener(new MultiplePermissionsListener() {
+            @Override
+            public void onPermissionsChecked(MultiplePermissionsReport report) {
+                if (!report.areAllPermissionsGranted()) {
+                    AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
+                    builder.setTitle("Permissions Required");
+                    builder.setMessage("Please grant permission to continue using the app");
+                    builder.create().show();
+                } else {
+                    detectBarcode();
+                }
+            }
+
+            @Override
+            public void onPermissionRationaleShouldBeShown(List<PermissionRequest> permissions, PermissionToken token) {
+                token.continuePermissionRequest();
+            }
+        }).check();
+    }
+    private void checkCameraPermissions() {
+        Dexter.withActivity(this)
+                .withPermissions(
+                        Manifest.permission.CAMERA
+                ).withListener(new MultiplePermissionsListener() {
+            @Override
+            public void onPermissionsChecked(MultiplePermissionsReport report) {
+                if (!report.areAllPermissionsGranted()) {
+                    AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
+                    builder.setTitle("Permissions Required");
+                    builder.setMessage("Please grant permission to continue using the app");
+                    builder.create().show();
+                } else {
+                    captureImage();
+                }
+            }
+
+            @Override
+            public void onPermissionRationaleShouldBeShown(List<PermissionRequest> permissions, PermissionToken token) {
+                token.continuePermissionRequest();
+            }
+        }).check();
     }
 
     private void openCamera() {
@@ -82,22 +151,35 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void detectBarcode() {
+        showProgressDialog();
         Frame frame = new Frame.Builder().setBitmap(bitmap).build();
         SparseArray<Barcode> barcodes = barcodeDetector.detect(frame);
+
+        if (barcodes == null || barcodes.size() < 1) {
+            hideProgressDialog();
+            Toast.makeText(this, "Failed to detect QR code", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
         Barcode barcode = barcodes.valueAt(0);
-        txtView.setText(barcode.rawValue);
         boolean isValid = URLUtil.isValidUrl(barcode.rawValue);
         Log.d(TAG, "Is url valid: " + isValid);
 
-        if (isValid) {
-            // TODO: 18/05/2018 make remote request
-            makeHttpRequest(barcode.rawValue);
+        if (!isValid) {
+            hideProgressDialog();
+            Toast.makeText(this, "Url not valid: " + barcode.rawValue, Toast.LENGTH_SHORT).show();
+            return;
         }
+
+        makeHttpRequest(barcode.rawValue);
     }
 
     private void makeHttpRequest(String url) {
-        url = url.replace("task2.json", "");
+        int lastIndex = url.lastIndexOf('/') + 1;
+        String endpointStr = url.substring(lastIndex);
+        url = url.substring(0, lastIndex);
         Log.d(TAG, "baseUrl: " + url);
+        Log.d(TAG, "endPoint: " + endpointStr);
         Retrofit retrofit = new Retrofit.Builder()
                 .baseUrl(url)
                 .addConverterFactory(ScalarsConverterFactory.create())
@@ -105,12 +187,13 @@ public class MainActivity extends AppCompatActivity {
 
         EbtikarService ebtikarService = retrofit.create(EbtikarService.class);
 
-        final Call<String> call = ebtikarService.getClients("task2.json");
-        new Thread(new Runnable() {
+        final Call<String> call = ebtikarService.getClients(endpointStr);
+        call.enqueue(new Callback<String>() {
             @Override
-            public void run() {
+            public void onResponse(Call<String> call, Response<String> response) {
                 try {
-                    String res = call.execute().body().toString();
+                    hideProgressDialog();
+                    String res = response.body();
                     Log.d(TAG, "res: " + res);
                     JSONObject jsonObject = new JSONObject(res);
                     JSONArray jsonArray = jsonObject.getJSONArray("clients");
@@ -126,28 +209,18 @@ public class MainActivity extends AppCompatActivity {
                         intent.putExtra(ClientsActivity.BUNDLE_ARGS_CLIENTS_RESPONSE, jsonArray.toString());
                         startActivity(intent);
                     }
-                } catch (IOException e) {
-                    Log.d(TAG, "error: " + e.toString());
-                    e.printStackTrace();
                 } catch (JSONException e) {
                     Log.d(TAG, "error: " + e.toString());
                     e.printStackTrace();
                 }
             }
-        }).start();
 
-
-//        call.enqueue(new Callback<List<Client>>() {
-//            @Override
-//            public void onResponse(Call<List<Client>> call, Response<List<Client>> response) {
-//                Log.d(TAG, "res: " + response.toString());
-//            }
-//
-//            @Override
-//            public void onFailure(Call<List<Client>> call, Throwable t) {
-//                Log.d(TAG, "error: " + t.toString());
-//            }
-//        });
+            @Override
+            public void onFailure(Call<String> call, Throwable t) {
+                hideProgressDialog();
+                Toast.makeText(MainActivity.this, "Network error please try again", Toast.LENGTH_SHORT).show();
+            }
+        });
     }
 
     private void loadImage() {
@@ -178,11 +251,36 @@ public class MainActivity extends AppCompatActivity {
     private void setupBarcodeDetector() {
         barcodeDetector = new BarcodeDetector.Builder(getApplicationContext())
                 .build();
-        if (!barcodeDetector.isOperational()) {
-            txtView.setText("Could not set up the detector!");
-            return;
-        } else {
-            txtView.setText("set up the detector!");
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == REQUEST_IMAGE_CAPTURE) {
+            if (resultCode == RESULT_OK) {
+                Bundle extras = data.getExtras();
+                Bitmap imageBitmap = (Bitmap) extras.get("data");
+                bitmap = imageBitmap;
+                imageView.setImageBitmap(imageBitmap);
+            } else {
+                Toast.makeText(this, "Couldn't load image please try again", Toast.LENGTH_SHORT).show();
+            }
         }
+    }
+
+    private void setupProgressDialog() {
+        progressDialog = new ProgressDialog(this);
+        progressDialog.setMessage("Scanning QR code ...");
+        progressDialog.setCancelable(false);
+    }
+
+    private void showProgressDialog() {
+        if (progressDialog != null && !progressDialog.isShowing())
+            progressDialog.show();
+    }
+
+    private void hideProgressDialog() {
+        if (progressDialog != null && progressDialog.isShowing())
+            progressDialog.dismiss();
     }
 }
