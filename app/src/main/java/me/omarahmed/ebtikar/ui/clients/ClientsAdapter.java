@@ -73,11 +73,10 @@ public class ClientsAdapter extends RecyclerView.Adapter<ClientsAdapter.ClientVi
                 @Override
                 public void onClick(View view) {
                     if (callback != null) {
-                        callback.onClientClicked(data.get(getAdapterPosition()).getMobile());
+                        callback.onClientClicked(data.get(getAdapterPosition()));
                     }
                 }
             });
-
         }
 
         public void bindData(Client client) {
@@ -87,7 +86,7 @@ public class ClientsAdapter extends RecyclerView.Adapter<ClientsAdapter.ClientVi
     }
 
     interface ClientCallback {
-        void onClientClicked(String number);
+        void onClientClicked(Client client);
 
         void onClientInfoClicked(Client client);
     }
